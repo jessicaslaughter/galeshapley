@@ -12,23 +12,21 @@ public class Assignment1 {
 	
 	// Set up Preference lists, call Stable Matching functions
 	public static void main(String args[]) {
-		int profList[] = {1, 3, 0, 2, 4, 2, 0, 4, 3, 1, 1, 2, 0, 4, 3, 4, 3, 0, 2, 1, 4, 0, 2, 1, 3};
-		int studentList[] = {1, 0, 3, 2, 4, 3, 2, 4, 0, 1, 4, 0, 3, 2, 1, 1, 0, 3, 4, 2, 4, 2, 3, 1, 0};
-		Preferences preferences = createPreferenceList(profList, studentList, profList.length);
-		ArrayList<Integer> matching = stableMatchGaleShapley(preferences);
-		System.out.println(matching);
-		preferences = createPreferenceList(profList, studentList, profList.length);
-		ArrayList<Cost> cost1 = stableMatchCosts(preferences);
-		for (Cost cost : cost1) {
+		ArrayList<Integer> BFMatching = stableMatchBruteForce(createPreferenceList());
+		ArrayList<Integer> GSMatching = stableMatchGaleShapley(createPreferenceList());
+		System.out.println(BFMatching);
+		System.out.println(GSMatching);
+		ArrayList<Cost> profCosts = stableMatchCosts(createPreferenceList());
+		ArrayList<Cost> studCosts = stableMatchCostsStudent(createPreferenceList());
+		for (Cost cost : profCosts) {
 			System.out.println(cost.toString());
 		}
-		preferences = createPreferenceList(profList, studentList, profList.length);
-		ArrayList<Cost> cost2 = stableMatchCostsStudent(preferences);
-		for (Cost cost : cost2) {
+		for (Cost cost : studCosts) {
 			System.out.println(cost.toString());
 		}
 		return;
 	}
+	
 	
 	// Invert preference list
 	public static ArrayList<ArrayList<Integer>> invert(ArrayList<ArrayList<Integer>> list) {
@@ -46,6 +44,21 @@ public class Assignment1 {
 		return inverse;
 	}
 	
+	// Invert and fix indexing of a preference list
+	public static ArrayList<ArrayList<Integer>> invertAndIndex(ArrayList<ArrayList<Integer>> list) {
+		ArrayList<ArrayList<Integer>> inverse = new ArrayList<ArrayList<Integer>>();
+		for (ArrayList<Integer> arr : list) {
+			ArrayList<Integer> temp = new ArrayList<Integer>();
+			while (temp.size() < arr.size()) {
+				temp.add(0); // fill temp array up
+			}
+			for (int i = 0; i < arr.size(); i++) {
+				temp.set(arr.get(i) - 1, i);
+			}
+			inverse.add(temp);
+		}
+		return inverse;
+	}
 	// Invert matching 
 	public static ArrayList<Integer> invertMatching(ArrayList<Integer> arr) {
 		ArrayList<Integer> temp = new ArrayList<Integer>();
@@ -56,6 +69,25 @@ public class Assignment1 {
 			temp.set(arr.get(i), i);
 		}
 		return temp;
+	}
+	
+	// Format indexing 
+	public static void formatIndex(Preferences preferences) {
+		for (ArrayList<Integer> list : preferences.getProfessors_preference()) {
+			for (int i = 0; i < list.size(); i++) {
+				int val = list.get(i);
+				val = val - 1;
+				list.set(i, val);
+			}
+		}
+		for (ArrayList<Integer> list : preferences.getStudents_preference()) {
+			for (int i = 0; i < list.size(); i++) {
+				int val = list.get(i);
+				val = val - 1;
+				list.set(i, val--);
+			}
+		}
+		return;
 	}
 	
 	// Determine if a matching is stable
@@ -110,6 +142,7 @@ public class Assignment1 {
 	
     // Part1: Implement a Brute Force Solution
     public static ArrayList<Integer> stableMatchBruteForce(Preferences preferences) {
+    	formatIndex(preferences);
     	ArrayList<Integer> matching = new ArrayList<Integer>();
     	int num = preferences.getNumberOfProfessors();
     	
@@ -122,8 +155,6 @@ public class Assignment1 {
     	getPermutations(matching, num, num, allPermutations);
     	for (ArrayList<Integer> permutation : allPermutations) {
     		if (isStableMatching(permutation, preferences)) {
-    			System.out.println("found a stable matching!");
-    			System.out.println(permutation);
     			return permutation; // found stable matching
     		}
     	}
@@ -136,6 +167,7 @@ public class Assignment1 {
 
     // Part2: Implement Gale-Shapley Algorithm
     public static ArrayList<Integer> stableMatchGaleShapley(Preferences preferences) {
+    	formatIndex(preferences);
     	ArrayList<Integer> matching = new ArrayList<Integer>();
     	int[] professors = new int[preferences.getNumberOfProfessors()];
     	int[] students = new int[preferences.getNumberOfStudents()];
@@ -190,8 +222,8 @@ public class Assignment1 {
     // Part3: Matching with Costs
     public static ArrayList<Cost> stableMatchCosts(Preferences preferences) {
     	ArrayList<Cost> cost = new ArrayList<Cost>();
-    	ArrayList<ArrayList<Integer>> profsList = invert(preferences.getProfessors_preference());
-    	ArrayList<ArrayList<Integer>> studentsList = invert(preferences.getStudents_preference());
+    	ArrayList<ArrayList<Integer>> profsList = invertAndIndex(preferences.getProfessors_preference());
+    	ArrayList<ArrayList<Integer>> studentsList = invertAndIndex(preferences.getStudents_preference());
     	ArrayList<Integer> matching = stableMatchGaleShapley(preferences);
     	for (int i = 0; i < matching.size(); i++) {
     		int profCost, studentCost;
@@ -207,47 +239,170 @@ public class Assignment1 {
     
     public static ArrayList<Cost> stableMatchCostsStudent(Preferences preferences) {
     	ArrayList<Cost> cost = new ArrayList<Cost>();
-    	ArrayList<ArrayList<Integer>> profsList = invert(preferences.getProfessors_preference());
-    	ArrayList<ArrayList<Integer>> studentsList = invert(preferences.getStudents_preference());
+    	ArrayList<ArrayList<Integer>> profsList = invertAndIndex(preferences.getProfessors_preference());
+    	ArrayList<ArrayList<Integer>> studentsList = invertAndIndex(preferences.getStudents_preference());
     	Preferences reversePrefs = new Preferences(preferences.getNumberOfStudents(), preferences.getNumberOfProfessors(), preferences.getStudents_preference(), preferences.getProfessors_preference());
     	ArrayList<Integer> matching = stableMatchGaleShapley(reversePrefs);
     	for (int i = 0; i < matching.size(); i++) {
     		int profCost, studentCost;
-    		ArrayList<Integer> profList = profsList.get(i);
-    		ArrayList<Integer> studentList = studentsList.get(matching.get(i));
-    		profCost = profList.get(matching.get(i));
-    		studentCost = studentList.get(i);
-    		Cost currentCost = new Cost(matching.get(i), i, studentCost, profCost);
+    		ArrayList<Integer> profList = profsList.get(matching.get(i));
+    		ArrayList<Integer> studentList = studentsList.get(i);
+    		profCost = profList.get(i);
+    		studentCost = studentList.get(matching.get(i));
+    		Cost currentCost = new Cost(i, matching.get(i), studentCost, profCost);
     		cost.add(currentCost);
     	}
     	return cost;
     }
     
     // Create Preference List for testing
- 	public static Preferences createPreferenceList(int[] profList, int[] studentList, int num) {
+ 	public static Preferences createPreferenceList() {
  		ArrayList<ArrayList<Integer>> professors_preference = new ArrayList<ArrayList<Integer>>();
  		ArrayList<ArrayList<Integer>> students_preference = new ArrayList<ArrayList<Integer>>();
- 		int count = 0;
- 		for (int i = 0; i < Math.sqrt(num); i++) {
- 			ArrayList<Integer> temp = new ArrayList<Integer>();
- 			for (int j = 0; j < Math.sqrt(num); j++) {
- 				temp.add(profList[count]);
- 				count++;
- 			}
- 			professors_preference.add(temp);
- 		}
+
+ 		ArrayList<Integer> prof1 = new ArrayList<Integer>();
+ 		prof1.add(3);
+ 		prof1.add(4);
+ 		prof1.add(2);
+ 		prof1.add(1);
+ 		prof1.add(6);
+ 		prof1.add(7);
+ 		prof1.add(5);
+
+ 		ArrayList<Integer> prof2 = new ArrayList<Integer>();
+ 		prof2.add(6);
+ 		prof2.add(4);
+ 		prof2.add(2);
+ 		prof2.add(3);
+ 		prof2.add(5);
+ 		prof2.add(1);
+ 		prof2.add(7);
  		
- 		count = 0;
- 		for (int i = 0; i < Math.sqrt(num); i++) {
- 			ArrayList<Integer> temp = new ArrayList<Integer>();
- 			for (int j = 0; j < Math.sqrt(num); j++) {
- 				temp.add(studentList[count]);
- 				count++;
- 			}
- 			students_preference.add(temp);
- 		}
+ 		ArrayList<Integer> prof3 = new ArrayList<Integer>();
+ 		prof3.add(6);
+ 		prof3.add(3);
+ 		prof3.add(5);
+ 		prof3.add(7);
+ 		prof3.add(2);
+ 		prof3.add(4);
+ 		prof3.add(1);
  		
- 		Preferences preferences = new Preferences((int)Math.sqrt(num), (int)Math.sqrt(num), professors_preference, students_preference);
+ 		ArrayList<Integer> prof4 = new ArrayList<Integer>();
+ 		prof4.add(1);
+ 		prof4.add(6);
+ 		prof4.add(3);
+ 		prof4.add(2);
+ 		prof4.add(4);
+ 		prof4.add(7);
+ 		prof4.add(5);
+
+ 		ArrayList<Integer> prof5 = new ArrayList<Integer>();
+ 		prof5.add(1);
+ 		prof5.add(6);
+ 		prof5.add(5);
+ 		prof5.add(3);
+ 		prof5.add(4);
+ 		prof5.add(7);
+ 		prof5.add(2);
+
+ 		ArrayList<Integer> prof6 = new ArrayList<Integer>();
+ 		prof6.add(1);
+ 		prof6.add(7);
+ 		prof6.add(3);
+ 		prof6.add(4);
+ 		prof6.add(5);
+ 		prof6.add(6);
+ 		prof6.add(2);
+
+ 		ArrayList<Integer> prof7 = new ArrayList<Integer>();
+ 		prof7.add(5);
+ 		prof7.add(6);
+ 		prof7.add(2);
+ 		prof7.add(4);
+ 		prof7.add(3);
+ 		prof7.add(7);
+ 		prof7.add(1);
+ 		
+ 		professors_preference.add(prof1);
+ 		professors_preference.add(prof2);
+ 		professors_preference.add(prof3);
+ 		professors_preference.add(prof4);
+ 		professors_preference.add(prof5);
+ 		professors_preference.add(prof6);
+ 		professors_preference.add(prof7);
+
+ 		ArrayList<Integer> stud1 = new ArrayList<Integer>();
+ 		stud1.add(4);
+ 		stud1.add(5);
+ 		stud1.add(3);
+ 		stud1.add(7);
+ 		stud1.add(2);
+ 		stud1.add(6);
+ 		stud1.add(1);
+
+ 		ArrayList<Integer> stud2 = new ArrayList<Integer>();
+ 		stud2.add(5);
+ 		stud2.add(6);
+ 		stud2.add(4);
+ 		stud2.add(7);
+ 		stud2.add(3);
+ 		stud2.add(2);
+ 		stud2.add(1);
+
+ 		ArrayList<Integer> stud3 = new ArrayList<Integer>();
+ 		stud3.add(1);
+ 		stud3.add(6);
+ 		stud3.add(5);
+ 		stud3.add(4);
+ 		stud3.add(3);
+ 		stud3.add(7);
+ 		stud3.add(2);
+
+ 		ArrayList<Integer> stud4 = new ArrayList<Integer>();
+ 		stud4.add(3);
+ 		stud4.add(5);
+ 		stud4.add(6);
+ 		stud4.add(7);
+ 		stud4.add(2);
+ 		stud4.add(4);
+ 		stud4.add(1);
+
+ 		ArrayList<Integer> stud5 = new ArrayList<Integer>();
+ 		stud5.add(1);
+ 		stud5.add(7);
+ 		stud5.add(6);
+ 		stud5.add(4);
+ 		stud5.add(3);
+ 		stud5.add(5);
+ 		stud5.add(2);
+
+ 		ArrayList<Integer> stud6 = new ArrayList<Integer>();
+ 		stud6.add(6);
+ 		stud6.add(3);
+ 		stud6.add(7);
+ 		stud6.add(5);
+ 		stud6.add(2);
+ 		stud6.add(4);
+ 		stud6.add(1);
+
+ 		ArrayList<Integer> stud7 = new ArrayList<Integer>();
+ 		stud7.add(1);
+ 		stud7.add(7);
+ 		stud7.add(4);
+ 		stud7.add(2);
+ 		stud7.add(6);
+ 		stud7.add(5);
+ 		stud7.add(3);
+ 		
+ 		students_preference.add(stud1);
+ 		students_preference.add(stud2);
+ 		students_preference.add(stud3);
+ 		students_preference.add(stud4);
+ 		students_preference.add(stud5);
+ 		students_preference.add(stud6);
+ 		students_preference.add(stud7);
+
+ 		Preferences preferences = new Preferences(7, 7, professors_preference, students_preference);
  		return preferences;
  	}
 }
